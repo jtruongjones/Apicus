@@ -230,14 +230,14 @@ function processScenarioJson(jsonString) {
   try {
     const scenarioData = JSON.parse(jsonString);
 
-    // Validate the basic structure
-    if (!scenarioData || !scenarioData.flow || !Array.isArray(scenarioData.flow.modules)) {
-      console.error("Invalid JSON structure: 'flow.modules' array not found.", scenarioData);
-      alert("Invalid JSON structure. Expected 'flow.modules' array. Please check the console for more details.");
+    // Validate the basic structure: scenarioData.flow should be an array of modules
+    if (!scenarioData || !Array.isArray(scenarioData.flow)) {
+      console.error("Invalid JSON structure: 'flow' array not found.", scenarioData);
+      alert("Invalid JSON structure. Expected 'flow' to be an array of modules. Please check the console for more details.");
       return;
     }
 
-    const modules = scenarioData.flow.modules;
+    const modules = scenarioData.flow; // modules are directly in the 'flow' array
     let extractedModulesInfo = [];
 
     console.log("Found " + modules.length + " modules in JSON.");
@@ -245,11 +245,12 @@ function processScenarioJson(jsonString) {
     modules.forEach(module => {
       const moduleInfo = {
         id: module.id,
-        operationName: module.name, // e.g., "Create Record", "Send Email"
-        fullType: module.type,     // e.g., "airtable.createRecord", "gmail.send"
+        // Use metadata.designer.name if available for operationName, otherwise fallback to module.name
+        operationName: (module.metadata && module.metadata.designer && module.metadata.designer.name) ? module.metadata.designer.name : module.name,
+        fullType: module.module, // Use module.module for the full type
         parameters: module.parameters || {}, // Include parameters, default to empty object
-        // Attempt to extract service from the 'type' field
-        service: module.type ? module.type.split('.')[0] : 'unknown'
+        // Extract service from module.module (e.g., "gateway" from "gateway:CustomWebHook")
+        service: module.module ? module.module.split(':')[0] : 'unknown'
       };
       extractedModulesInfo.push(moduleInfo);
     });
