@@ -15,7 +15,7 @@ function injectButton() {
 
   const button = document.createElement('button');
   button.id = 'make-roi-check-button';
-  button.textContent = 'Run ROI Check';
+  button.textContent = 'Apicus ROI Check';
 
   // Styles are now in style.css
 
