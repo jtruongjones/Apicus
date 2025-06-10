@@ -1,0 +1,21 @@
+/* style.css */
+#make-roi-check-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  background-color: #007bff; /* Blue */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  z-index: 10000; /* Ensure it's on top of other elements */
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: background-color 0.3s ease;
+}
+
+#make-roi-check-button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+}
