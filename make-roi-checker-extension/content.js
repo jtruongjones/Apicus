@@ -35,6 +35,215 @@ if (document.readyState === 'loading') {
     setTimeout(injectButton, 2000);
 }
 
+function getApiKey() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(['openaiApiKey'], function(result) {
+      if (chrome.runtime.lastError) {
+        // Handle errors during storage access
+        console.error('Error retrieving API key:', chrome.runtime.lastError);
+        reject(chrome.runtime.lastError);
+      } else if (result.openaiApiKey) {
+        resolve(result.openaiApiKey);
+      } else {
+        // API key not found
+        resolve(null); // Resolve with null if no key is found, let caller handle it
+      }
+    });
+  });
+}
+
+async function getApicusRoiBenchmark(inputForOpenAI) {
+  console.log("getApicusRoiBenchmark: Initiating call to OpenAI API...");
+
+  let apiKey;
+  try {
+    apiKey = await getApiKey();
+    if (!apiKey) {
+      console.error("OpenAI API Key not found. Please set it in the extension options.");
+      alert("OpenAI API Key not found. Please set it in the extension options (right-click the extension icon > Options).");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching API key for OpenAI:", error);
+    alert("Error fetching API key. Check console for details.");
+    return null;
+  }
+
+  const apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+  const hardcodedPrompt = `this is the hardcoded prompt -
+
+You are an AI assistant trained on the Apicus ROI Framework (v0.1). You are generating synthetic ROI benchmarks for automation workflows.
+
+Each input is a JSON object with:
+- \`industry\`: the business context (e.g. "Marketing", "Legal")
+- \`workflow\`: a JSON object that contains the automation title and nodes
+
+You will output only a structured JSON object with ROI-relevant estimates.
+
+---
+
+APICUS ROI FORMULA:
+
+ROI = ((T × H × V*) + R + U − C)
+
+Where:
+• T = Time saved per month (in hours)
+• H = Hourly rate (always $30)
+• V* = Task value multiplier
+• R = Risk reduction value (USD)
+• U = Revenue uplift (USD)
+• C = Monthly cost of the automation
+
+---
+
+TASK VALUE MULTIPLIER (V*)
+
+Step 1: Select a **Base V** from this table:
+
+| Task Type               | Base V |
+|------------------------|--------|
+| Admin / Data Entry     | 1.0    |
+| Internal Ops           | 1.2    |
+| Compliance / Legal     | 1.4    |
+| Customer Support       | 1.5    |
+| Marketing              | 1.6    |
+| Lead Generation        | 1.8    |
+| Sales Enablement       | 2.0    |
+| Strategic Revenue Ops  | 2.1+   |
+
+Base V should be inferred from the workflow title, node types, and tools used.
+
+Step 2: Add Business Stage Modifier
++0.1 (Always assume Small Team)
+
+Step 3: Add Leverage Modifier based on reach per run:
+- +0.0 = 1–2 people/systems
+- +0.1 = 3–10
+- +0.2 = 10+ or public-facing
+
+→ Calculate V* = base + 0.1 + leverage
+→ Cap at 2.0 **only if Revenue Uplift (U) is included**
+
+---
+
+REVENUE UPLIFT (U):
+Include if the workflow supports monetization (e.g., outreach, booking, lead gen)
+- Use 2% conversion rate
+- $100 value per conversion
+- Estimate monthly volume
+→ U = volume × 0.02 × 100
+→ If U is used, cap V* at 2.0
+
+---
+
+RISK VALUE (R):
+Include only if automation prevents error, rework, or compliance issues.
+Use:
+→ R = risk level (1–5) × runs per month × $250
+
+---
+
+COST (C):
+Estimate based on tools used (Zapier, Make, OpenAI, Slack, etc.)
+
+---
+
+FINAL CALCULATION:
+Use all estimated values to compute:
+**calculated_roi = ((T × H × V*) + R + U − C)**
+→ Round to two decimal places
+
+---
+
+✅ OUTPUT FORMAT (STRICT, RAW JSON ONLY — NO MARKDOWN):
+
+{
+  "automation_title": "...",
+  "industry": "...",
+  "estimated_runs_per_month": ...,
+  "estimated_time_saved_minutes": ...,
+  "estimated_hourly_rate_usd": 30,
+  "task_value_multiplier": ...,
+  "estimated_risk_value_usd": ...,
+  "estimated_revenue_uplift_usd": ...,
+  "estimated_monthly_cost_usd": ...,
+  "calculated_roi": ...,
+  "notes": "...",
+  "flags": ["synthetic", "benchmark", "v0.1"]
+}
+
+---
+
+DO NOT include any explanation, headers, or formatting—only return one valid JSON object. do not include things like \`\`\`json
+
+---
+
+INPUT:
+`; // Note: Input data will be appended here.
+
+  const messages = [
+    {
+      role: "user",
+      content: `${hardcodedPrompt}
+${JSON.stringify(inputForOpenAI, null, 2)}`
+    }
+  ];
+
+  const requestBody = {
+    model: "gpt-4",
+    messages: messages,
+    // You can add other parameters like temperature, max_tokens if needed
+    // temperature: 0.7,
+    // max_tokens: 1000, // Increased max_tokens for potentially larger JSON output
+  };
+
+  console.log("getApicusRoiBenchmark: Sending request to OpenAI with body:", requestBody);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      console.error(`OpenAI API Error: ${response.status} - ${errorData.message || errorData.error?.message}`, errorData);
+      alert(`OpenAI API Error: ${response.status} - ${errorData.message || errorData.error?.message}. Check console for details.`);
+      return null;
+    }
+
+    const responseData = await response.json();
+    console.log("getApicusRoiBenchmark: Received response from OpenAI:", responseData);
+
+    if (responseData.choices && responseData.choices.length > 0 && responseData.choices[0].message && responseData.choices[0].message.content) {
+      const aiResponseString = responseData.choices[0].message.content.trim();
+      try {
+          const parsedJsonResponse = JSON.parse(aiResponseString);
+          return parsedJsonResponse; // Return the parsed object
+      } catch (parseError) {
+          console.error("OpenAI API Error: Failed to parse AI's response as JSON.", parseError);
+          console.error("AI's raw response string:", aiResponseString);
+          alert("OpenAI API Error: Failed to parse the AI's response as JSON. Check console for details and the raw response.");
+          return null;
+      }
+    } else {
+      console.error("OpenAI API Error: Unexpected response structure.", responseData);
+      alert("OpenAI API Error: Could not extract message content from the response. Check console for details.");
+      return null;
+    }
+
+  } catch (error) {
+    console.error("Error during OpenAI API call:", error);
+    alert("An error occurred while communicating with the OpenAI API: " + error.message + ". Check console for details.");
+    return null;
+  }
+}
+
 function initiateRoiAnalysis() {
   console.log("Apicus ROI Check: Analysis initiated.");
 
@@ -223,8 +432,8 @@ function showJsonInputModal() {
 }
 
 // Parses the provided JSON string (expected to be a Make.com scenario export),
-// extracts module information, and logs it.
-function processScenarioJson(jsonString) {
+// extracts module information, and logs it. Also calls OpenAI for analysis.
+async function processScenarioJson(jsonString) {
   console.log("Processing scenario JSON...");
 
   try {
@@ -263,6 +472,55 @@ function processScenarioJson(jsonString) {
         console.table(extractedModulesInfo);
       }
       alert("Successfully processed " + extractedModulesInfo.length + " modules! Check the console for details.");
+
+      // Prompt for Industry
+      const userProvidedIndustry = prompt("Please enter the industry for this workflow (e.g., Marketing, Legal, Healthcare):", "General");
+      if (userProvidedIndustry === null) { // User clicked cancel
+          console.log("User cancelled providing industry. Aborting OpenAI call.");
+          alert("OpenAI call cancelled as industry was not provided.");
+          return; // Exit if user cancels prompt
+      }
+      const industry = userProvidedIndustry.trim() || "General"; // Default if empty
+
+      // Get Scenario Name
+      const scenarioName = scenarioData.name || "Untitled Scenario";
+
+      // Construct inputForOpenAI
+      const inputForOpenAI = {
+        industry: industry,
+        workflow: {
+          title: scenarioName,
+          nodes: extractedModulesInfo // This is the array of module objects
+        }
+      };
+
+      console.log("Calling getApicusRoiBenchmark with input:", inputForOpenAI);
+      alert("Sending data to OpenAI for ROI Benchmark analysis. This may take a moment...");
+
+      const roiBenchmarkObject = await getApicusRoiBenchmark(inputForOpenAI);
+
+      if (roiBenchmarkObject) {
+        console.log("OpenAI ROI Benchmark Response (Object):", roiBenchmarkObject);
+        // Attempt to pretty-print the JSON object in the alert for better readability,
+        // but keep it concise.
+        let alertOutput = "Successfully received ROI Benchmark from OpenAI!\n\n";
+        try {
+          alertOutput += JSON.stringify(roiBenchmarkObject, null, 2);
+           if (alertOutput.length > 1000) { // Keep alert from being excessively long
+              alertOutput = alertOutput.substring(0, 1000) + "... (full object in console)";
+          }
+        } catch (e) {
+          alertOutput += "Raw object details are in the console.";
+        }
+        alert(alertOutput + "\n\nCheck the console for the full JSON object.");
+
+      } else {
+        console.log("getApicusRoiBenchmark did not return a valid object (see previous errors).");
+        // Alerts for specific errors (API key, API call, JSON parsing of AI response)
+        // are already handled within getApicusRoiBenchmark.
+        // We can add a general one here if needed, but it might be redundant.
+        // alert("Failed to get ROI Benchmark from OpenAI. Check console for errors.");
+      }
     } else {
       console.log("No modules were processed from the JSON.");
       alert("No modules found or processed from the JSON.");

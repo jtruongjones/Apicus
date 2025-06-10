@@ -2,13 +2,15 @@
   "manifest_version": 3,
   "name": "Make.com ROI Checker",
   "version": "0.1.0",
-  "description": "Injects a button on Make.com scenario pages to check ROI.",
+  "description": "Injects a button on Make.com scenario pages to check ROI and process data.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
-    "https://*.make.com/"
+    "https://*.make.com/",
+    "https://api.openai.com/"
   ],
   "content_scripts": [
     {
@@ -21,5 +23,6 @@
     "16": "images/icon16.png",
     "48": "images/icon48.png",
     "128": "images/icon128.png"
-  }
+  },
+  "options_page": "options.html"
 }
