@@ -3,6 +3,10 @@
   "name": "Make.com ROI Checker",
   "version": "0.1.0",
   "description": "Injects a button on Make.com scenario pages to check ROI and process data.",
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
   "permissions": [
     "activeTab",
     "scripting",

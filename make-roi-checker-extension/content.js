@@ -531,17 +531,26 @@ async function processScenarioJson(jsonString) {
             return;
           }
 
-          // Successfully saved, now open the tab
+          // Successfully saved tempRoiData, now request service worker to open the tab
           const displayPageUrl = chrome.runtime.getURL('display_roi.html');
-          chrome.tabs.create({ url: displayPageUrl }, function(tab) {
+
+          chrome.runtime.sendMessage(
+            {
+              action: "openDisplayTab",
+              url: displayPageUrl
+            },
+            function(response) {
               if (chrome.runtime.lastError) {
-                  console.error("Error opening display tab:", chrome.runtime.lastError);
-                  alert("Error opening display tab. Check console for details. ROI data is in the console.");
+                console.error("Error sending message to service worker or service worker failed to open tab:", chrome.runtime.lastError.message);
+                alert("Error requesting to open display tab. Check console for details. ROI data is in the console.");
               } else {
-                  console.log("Display tab opened:", tab);
-                  alert("ROI Benchmark generated! Opening results in a new tab.");
+                // Optional: Check response from service worker if it sends one
+                // console.log("Response from service worker:", response);
+                console.log("Message sent to service worker to open display tab.");
+                alert("ROI Benchmark generated! Requesting to open results in a new tab.");
               }
-          });
+            }
+          );
         });
 
       } else {
