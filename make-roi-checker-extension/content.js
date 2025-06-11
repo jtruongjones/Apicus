@@ -500,26 +500,35 @@ async function processScenarioJson(jsonString) {
       const roiBenchmarkObject = await getApicusRoiBenchmark(inputForOpenAI);
 
       if (roiBenchmarkObject) {
-        console.log("OpenAI ROI Benchmark Response (Object):", roiBenchmarkObject);
-        // Attempt to pretty-print the JSON object in the alert for better readability,
-        // but keep it concise.
-        let alertOutput = "Successfully received ROI Benchmark from OpenAI!\n\n";
-        try {
-          alertOutput += JSON.stringify(roiBenchmarkObject, null, 2);
-           if (alertOutput.length > 1000) { // Keep alert from being excessively long
-              alertOutput = alertOutput.substring(0, 1000) + "... (full object in console)";
+        console.log("OpenAI ROI Benchmark Response (Object):", roiBenchmarkObject); // Keep this log for debugging
+
+        // Store data in chrome.storage.local and then open the new tab
+        chrome.storage.local.set({ tempRoiData: roiBenchmarkObject }, function() {
+          if (chrome.runtime.lastError) {
+            console.error("Error saving tempRoiData to local storage:", chrome.runtime.lastError);
+            alert("Error preparing data for display. Check console for details.");
+            return;
           }
-        } catch (e) {
-          alertOutput += "Raw object details are in the console.";
-        }
-        alert(alertOutput + "\n\nCheck the console for the full JSON object.");
+
+          // Successfully saved, now open the tab
+          const displayPageUrl = chrome.runtime.getURL('display_roi.html');
+          chrome.tabs.create({ url: displayPageUrl }, function(tab) {
+              if (chrome.runtime.lastError) {
+                  console.error("Error opening display tab:", chrome.runtime.lastError);
+                  alert("Error opening display tab. Check console for details. ROI data is in the console.");
+              } else {
+                  console.log("Display tab opened:", tab);
+                  alert("ROI Benchmark generated! Opening results in a new tab.");
+              }
+          });
+        });
 
       } else {
-        console.log("getApicusRoiBenchmark did not return a valid object (see previous errors).");
-        // Alerts for specific errors (API key, API call, JSON parsing of AI response)
-        // are already handled within getApicusRoiBenchmark.
-        // We can add a general one here if needed, but it might be redundant.
-        // alert("Failed to get ROI Benchmark from OpenAI. Check console for errors.");
+        // This 'else' block for when roiBenchmarkObject is null (error already handled by getApicusRoiBenchmark)
+        // can largely remain the same or be simplified, as getApicusRoiBenchmark already alerts on its own errors.
+        // A simple log here is fine.
+        console.log("processScenarioJson: roiBenchmarkObject was null, indicating a prior failure in getApicusRoiBenchmark.");
+        // alert("Failed to get ROI Benchmark from OpenAI. Check console for errors."); // This might be redundant
       }
     } else {
       console.log("No modules were processed from the JSON.");

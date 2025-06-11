@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apicus ROI Benchmark</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 25px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .data-point {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 4px solid #3498db; /* Accent color */
+            background-color: #eaf2f8;
+            border-radius: 4px;
+        }
+        .data-point strong {
+            color: #2980b9; /* Darker accent for labels */
+            display: inline-block;
+            min-width: 250px; /* For alignment */
+        }
+        .data-point span {
+            font-weight: 500;
+        }
+        .notes {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            white-space: pre-wrap; /* Preserve line breaks in notes */
+        }
+        .flags-container {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .flag {
+            display: inline-block;
+            background-color: #7f8c8d;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin: 0 5px;
+        }
+        #error-message {
+            color: #c0392b;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Automation ROI Benchmark</h1>
+
+        <div id="roi-data-container">
+            <div class="data-point"><strong>Automation Title:</strong> <span id="automation_title_value">-</span></div>
+            <div class="data-point"><strong>Industry:</strong> <span id="industry_value">-</span></div>
+            <div class="data-point"><strong>Estimated Runs per Month:</strong> <span id="estimated_runs_per_month_value">-</span></div>
+            <div class="data-point"><strong>Estimated Time Saved (minutes/month):</strong> <span id="estimated_time_saved_minutes_value">-</span></div>
+            <div class="data-point"><strong>Task Value Multiplier (V*):</strong> <span id="task_value_multiplier_value">-</span></div>
+            <div class="data-point"><strong>Estimated Risk Value (USD/month):</strong> <span id="estimated_risk_value_usd_value">-</span></div>
+            <div class="data-point"><strong>Estimated Revenue Uplift (USD/month):</strong> <span id="estimated_revenue_uplift_usd_value">-</span></div>
+            <div class="data-point"><strong>Estimated Monthly Cost (USD):</strong> <span id="estimated_monthly_cost_usd_value">-</span></div>
+            <div class="data-point" style="border-left-color: #27ae60; background-color: #e8f6ef;"> <!-- Highlight ROI -->
+                <strong>Calculated ROI (USD/month):</strong> <span id="calculated_roi_value" style="font-weight: bold; color: #27ae60;">-</span>
+            </div>
+
+            <div class="data-point notes-container">
+                <strong>Notes:</strong>
+                <div class="notes" id="notes_value">-</div>
+            </div>
+
+            <div class="flags-container">
+                <strong>Flags:</strong> <span id="flags_value_container"></span>
+            </div>
+        </div>
+        <div id="error-message" style="display:none;">No ROI data found or data is invalid.</div>
+    </div>
+
+    <script src="display_roi.js"></script>
+</body>
+</html>
