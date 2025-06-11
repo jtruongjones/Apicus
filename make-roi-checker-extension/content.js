@@ -349,6 +349,8 @@ function showJsonInputModal() {
     return;
   }
 
+  let loadedJsonStringFromFile = null;
+
   // Modal container
   const modal = document.createElement('div');
   modal.id = 'apicus-roi-json-modal';
@@ -379,8 +381,24 @@ function showJsonInputModal() {
   title.style.marginBottom = '15px';
   title.style.textAlign = 'center';
 
+  // File Input Element
+  const fileInputLabel = document.createElement('label');
+  fileInputLabel.htmlFor = 'apicus-roi-json-file-input';
+  fileInputLabel.textContent = 'Or Upload JSON File:';
+  fileInputLabel.style.display = 'block';
+  fileInputLabel.style.marginTop = '15px';
+  fileInputLabel.style.marginBottom = '5px';
+  fileInputLabel.style.fontWeight = 'bold';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.id = 'apicus-roi-json-file-input';
+  fileInput.accept = '.json';
+  fileInput.style.display = 'block';
+  fileInput.style.marginBottom = '10px';
+
   // Textarea
-  const textarea = document.createElement('textarea');
+  const textarea = document.createElement('textarea'); // Ensure textarea is defined here
   textarea.id = 'apicus-roi-json-input';
   textarea.style.width = 'calc(100% - 20px)'; // Account for padding
   textarea.style.height = '300px';
@@ -388,7 +406,46 @@ function showJsonInputModal() {
   textarea.style.border = '1px solid #ccc';
   textarea.style.borderRadius = '4px';
   textarea.style.padding = '10px';
-  textarea.placeholder = 'Paste your exported scenario JSON here...';
+  textarea.placeholder = 'Paste JSON here, or select a file above. File content will appear here.';
+
+  fileInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+          // Check if the file type is JSON (basic check)
+          if (file.type === "application/json" || file.name.endsWith(".json")) {
+              const reader = new FileReader();
+
+              reader.onload = function(e) {
+                  loadedJsonStringFromFile = e.target.result;
+                  textarea.value = `File loaded: ${file.name}\n\nContent will be processed. You can also clear selection and paste manually.`;
+                  textarea.readOnly = true; // Make textarea read-only
+                  console.log(`File "${file.name}" loaded successfully.`);
+              };
+
+              reader.onerror = function(e) {
+                  console.error("Error reading file:", file.name, e);
+                  alert(`Error reading file: ${file.name}. Please try again or paste content manually.`);
+                  loadedJsonStringFromFile = null; // Reset
+                  textarea.value = "Error reading file. Paste JSON here, or select a file above.";
+                  textarea.readOnly = false; // Make textarea writable again
+                  fileInput.value = ''; // Clear the file input
+              };
+
+              reader.readAsText(file);
+          } else {
+              alert("Invalid file type. Please select a .json file.");
+              loadedJsonStringFromFile = null;
+              textarea.value = "Invalid file type. Paste JSON here, or select a file above.";
+              textarea.readOnly = false;
+              fileInput.value = ''; // Clear the file input
+          }
+      } else {
+          // No file selected (e.g., user cancelled file dialog)
+          loadedJsonStringFromFile = null;
+          textarea.value = "No file selected. Paste JSON here, or select a file above.";
+          textarea.readOnly = false; // Make textarea writable
+      }
+  });
 
   // Button container
   const buttonContainer = document.createElement('div');
@@ -407,12 +464,28 @@ function showJsonInputModal() {
   processButton.style.marginRight = '10px';
 
   processButton.addEventListener('click', () => {
-    const jsonString = textarea.value;
-    if (jsonString.trim()) {
-      processScenarioJson(jsonString); // Call the processing function
-      closeModal();
+    let jsonStringToProcess = null;
+
+    if (loadedJsonStringFromFile) {
+      jsonStringToProcess = loadedJsonStringFromFile;
+      console.log("Processing JSON from loaded file.");
+    } else if (textarea.value.trim()) {
+      jsonStringToProcess = textarea.value.trim();
+      console.log("Processing JSON from textarea.");
+    }
+
+    if (jsonStringToProcess) {
+      processScenarioJson(jsonStringToProcess); // This is async, but we close modal immediately after call
+
+      // Reset for next time modal opens (will also be done in closeModal for robustness)
+      // loadedJsonStringFromFile = null; // This will be handled by closeModal
+      // if(fileInput) fileInput.value = '';
+      // textarea.value = '';
+      // textarea.readOnly = false;
+
+      closeModal(); // closeModal is already defined in showJsonInputModal
     } else {
-      alert("Textarea is empty. Please paste your JSON.");
+      alert("No JSON data to process. Please select a file or paste JSON into the textarea.");
     }
   });
 
@@ -433,8 +506,20 @@ function showJsonInputModal() {
   // Function to close the modal
   function closeModal() {
     if (document.getElementById('apicus-roi-json-modal')) {
-      document.body.removeChild(modal);
+      document.body.removeChild(modal); // 'modal' is the overlay div
     }
+    // Reset states
+    loadedJsonStringFromFile = null;
+    const fileInputForReset = document.getElementById('apicus-roi-json-file-input');
+    if (fileInputForReset) {
+        fileInputForReset.value = ''; // Clear file input
+    }
+    const textareaForReset = document.getElementById('apicus-roi-json-input');
+    if (textareaForReset) {
+        textareaForReset.value = ''; // Clear textarea
+        textareaForReset.readOnly = false; // Ensure textarea is writable
+    }
+    console.log("Modal closed and input states reset.");
   }
 
   // Assemble modal
@@ -442,6 +527,11 @@ function showJsonInputModal() {
   buttonContainer.appendChild(cancelButton);
 
   modalContent.appendChild(title);
+  // closeButton is already appended in showEmbeddedRoiModal, but this is showJsonInputModal
+  // Assuming close button logic is handled or will be added if this modal needs one.
+  // For now, following the structure from previous showJsonInputModal.
+  modalContent.appendChild(fileInputLabel);
+  modalContent.appendChild(fileInput);
   modalContent.appendChild(textarea);
   modalContent.appendChild(buttonContainer);
 
