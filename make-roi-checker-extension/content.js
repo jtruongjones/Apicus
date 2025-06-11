@@ -521,44 +521,18 @@ async function processScenarioJson(jsonString) {
       const roiBenchmarkObject = await getApicusRoiBenchmark(inputForOpenAI);
 
       if (roiBenchmarkObject) {
-        console.log("OpenAI ROI Benchmark Response (Object):", roiBenchmarkObject); // Keep this log for debugging
+        console.log("OpenAI ROI Benchmark Response (Object):", roiBenchmarkObject); // Keep for debugging
 
-        // Store data in chrome.storage.local and then open the new tab
-        chrome.storage.local.set({ tempRoiData: roiBenchmarkObject }, function() {
-          if (chrome.runtime.lastError) {
-            console.error("Error saving tempRoiData to local storage:", chrome.runtime.lastError);
-            alert("Error preparing data for display. Check console for details.");
-            return;
-          }
+        // Call the function to display the modal directly on the current page
+        showEmbeddedRoiModal(roiBenchmarkObject);
 
-          // Successfully saved tempRoiData, now request service worker to open the tab
-          const displayPageUrl = chrome.runtime.getURL('display_roi.html');
-
-          chrome.runtime.sendMessage(
-            {
-              action: "openDisplayTab",
-              url: displayPageUrl
-            },
-            function(response) {
-              if (chrome.runtime.lastError) {
-                console.error("Error sending message to service worker or service worker failed to open tab:", chrome.runtime.lastError.message);
-                alert("Error requesting to open display tab. Check console for details. ROI data is in the console.");
-              } else {
-                // Optional: Check response from service worker if it sends one
-                // console.log("Response from service worker:", response);
-                console.log("Message sent to service worker to open display tab.");
-                alert("ROI Benchmark generated! Requesting to open results in a new tab.");
-              }
-            }
-          );
-        });
+        alert("ROI Benchmark results displayed on the page."); // Update alert
 
       } else {
-        // This 'else' block for when roiBenchmarkObject is null (error already handled by getApicusRoiBenchmark)
-        // can largely remain the same or be simplified, as getApicusRoiBenchmark already alerts on its own errors.
-        // A simple log here is fine.
-        console.log("processScenarioJson: roiBenchmarkObject was null, indicating a prior failure in getApicusRoiBenchmark.");
-        // alert("Failed to get ROI Benchmark from OpenAI. Check console for errors."); // This might be redundant
+        // This 'else' block (when roiBenchmarkObject is null) can remain as is.
+        // It typically means an error was already handled and alerted by getApicusRoiBenchmark.
+        console.log("processScenarioJson: roiBenchmarkObject was null, no modal to display.");
+        // alert("Failed to get ROI Benchmark from OpenAI. Check console for errors."); // This alert might be redundant
       }
     } else {
       console.log("No modules were processed from the JSON.");
@@ -569,4 +543,116 @@ async function processScenarioJson(jsonString) {
     console.error("Error parsing JSON:", error);
     alert("Error parsing JSON: " + error.message + ". Please ensure it's valid JSON and check the console.");
   }
+}
+
+function showEmbeddedRoiModal(roiData) {
+    console.log("showEmbeddedRoiModal called with data:", roiData);
+
+    const modalId = 'apicus-roi-modal-overlay';
+    // Remove existing modal if any
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = modalId;
+    // Styling for overlay will be in style.css, but basic properties can be set here
+    // if needed, or rely entirely on CSS. For now, JS will set what's needed for behavior.
+
+    // Create modal content box
+    const modalContent = document.createElement('div');
+    modalContent.className = 'apicus-roi-modal-content'; // For styling via style.css
+
+    // Create title
+    const titleElement = document.createElement('h2');
+    titleElement.className = 'apicus-roi-modal-title';
+    titleElement.textContent = 'Apicus ROI Benchmark';
+
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.className = 'apicus-roi-modal-close';
+    closeButton.innerHTML = '&times;'; // '×' character
+    closeButton.onclick = function() {
+        overlay.remove();
+    };
+
+    // Helper function to create data rows
+    function createDataRow(label, value, valueId, isCurrency = false, isBold = false) {
+        const row = document.createElement('div');
+        row.className = 'apicus-roi-data-row';
+
+        const strong = document.createElement('strong');
+        strong.textContent = label + ': ';
+        row.appendChild(strong);
+
+        const span = document.createElement('span');
+        span.id = valueId ? `apicus-roi-${valueId}` : '';
+
+        let displayValue = 'N/A';
+        if (value !== undefined && value !== null) {
+            if (isCurrency) {
+                displayValue = typeof value === 'number' ? `$${value.toFixed(2)}` : String(value);
+            } else {
+                displayValue = typeof value === 'number' ? value.toFixed(value % 1 === 0 ? 0 : 2) : String(value);
+            }
+        }
+        span.textContent = displayValue;
+
+        if (isBold) {
+            span.style.fontWeight = 'bold';
+        }
+        if (label === 'Calculated ROI (USD/month)') { // Special highlight for ROI
+             row.classList.add('apicus-roi-highlight');
+             span.classList.add('apicus-roi-highlight-value');
+        }
+
+        row.appendChild(span);
+        return row;
+    }
+
+    // Populate modal content
+    modalContent.appendChild(titleElement);
+    modalContent.appendChild(closeButton);
+
+    modalContent.appendChild(createDataRow('Automation Title', roiData.automation_title, 'automation_title_value'));
+    modalContent.appendChild(createDataRow('Industry', roiData.industry, 'industry_value'));
+    modalContent.appendChild(createDataRow('Estimated Runs per Month', roiData.estimated_runs_per_month, 'runs_value'));
+    modalContent.appendChild(createDataRow('Estimated Time Saved (minutes/month)', roiData.estimated_time_saved_minutes, 'time_saved_value'));
+    modalContent.appendChild(createDataRow('Task Value Multiplier (V*)', roiData.task_value_multiplier, 'v_star_value'));
+    modalContent.appendChild(createDataRow('Estimated Risk Value (USD/month)', roiData.estimated_risk_value_usd, 'risk_value', true));
+    modalContent.appendChild(createDataRow('Estimated Revenue Uplift (USD/month)', roiData.estimated_revenue_uplift_usd, 'revenue_uplift_value', true));
+    modalContent.appendChild(createDataRow('Estimated Monthly Cost (USD)', roiData.estimated_monthly_cost_usd, 'monthly_cost_value', true));
+    modalContent.appendChild(createDataRow('Calculated ROI (USD/month)', roiData.calculated_roi, 'calculated_roi_value', true, true));
+
+    const notesDiv = document.createElement('div');
+    notesDiv.className = 'apicus-roi-notes-container';
+    const notesStrong = document.createElement('strong');
+    notesStrong.textContent = 'Notes:';
+    notesDiv.appendChild(notesStrong);
+    const notesP = document.createElement('p');
+    notesP.className = 'apicus-roi-notes-text';
+    notesP.textContent = roiData.notes || 'No notes provided.';
+    notesDiv.appendChild(notesP);
+    modalContent.appendChild(notesDiv);
+
+    const flagsDiv = document.createElement('div');
+    flagsDiv.className = 'apicus-roi-flags-container';
+    const flagsStrong = document.createElement('strong');
+    flagsStrong.textContent = 'Flags: ';
+    flagsDiv.appendChild(flagsStrong);
+    const flagsSpan = document.createElement('span');
+    if (Array.isArray(roiData.flags) && roiData.flags.length > 0) {
+        flagsSpan.textContent = roiData.flags.join(', '); // Simple join for now, can be styled spans later
+    } else {
+        flagsSpan.textContent = 'N/A';
+    }
+    flagsDiv.appendChild(flagsSpan);
+    modalContent.appendChild(flagsDiv);
+
+    // Append modal content to overlay, then overlay to body
+    overlay.appendChild(modalContent);
+    document.body.appendChild(overlay);
+    console.log("Embedded ROI modal displayed.");
 }

@@ -19,3 +19,141 @@
 #make-roi-check-button:hover {
   background-color: #D9421E; /* Darker Orange on hover */
 }
+
+
+/* Styles for Apicus ROI Embedded Modal */
+#apicus-roi-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
+    z-index: 20000; /* High z-index to be on top */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px; /* Padding for smaller screens */
+    box-sizing: border-box;
+}
+
+.apicus-roi-modal-content {
+    background-color: #ffffff;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: auto;
+    max-width: 650px; /* Max width of the modal */
+    max-height: 90vh; /* Max height relative to viewport */
+    overflow-y: auto; /* Scroll if content is too long */
+    position: relative; /* For positioning the close button */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+.apicus-roi-modal-title {
+    color: #2c3e50;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.apicus-roi-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 2em; /* Make the '×' larger */
+    color: #777;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+}
+.apicus-roi-modal-close:hover {
+    color: #333;
+}
+
+.apicus-roi-data-row {
+    margin-bottom: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee; /* Separator for rows */
+}
+.apicus-roi-data-row:last-of-type { /* Corrected to target the intended last data row before notes/flags */
+    border-bottom: none;
+}
+.apicus-roi-data-row strong {
+    color: #555; /* Label color */
+    display: inline-block;
+    min-width: 240px; /* Adjust for alignment if needed */
+    font-weight: 600;
+}
+.apicus-roi-data-row span {
+    font-weight: 500;
+    color: #222;
+}
+
+.apicus-roi-highlight { /* For the main ROI calculation row */
+    background-color: #e8f6ef; /* Light green background */
+    margin-left: -30px; /* Extend to full width of modal padding */
+    margin-right: -30px; /* Extend to full width of modal padding */
+    padding-left: 30px;
+    padding-right: 30px;
+    border-left: 4px solid #27ae60;
+    border-bottom: none; /* Remove bottom border if it's highlighted */
+}
+.apicus-roi-highlight-value { /* For the ROI value itself */
+    font-weight: bold !important;
+    color: #27ae60 !important; /* Green color for ROI value */
+    font-size: 1.1em;
+}
+
+.apicus-roi-notes-container {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+.apicus-roi-notes-container strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 600;
+}
+.apicus-roi-notes-text {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 10px;
+    white-space: pre-wrap; /* Preserve line breaks in notes */
+    font-size: 0.95em;
+    color: #444;
+}
+
+.apicus-roi-flags-container {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    text-align: left;
+}
+.apicus-roi-flags-container strong {
+    color: #555;
+    font-weight: 600;
+}
+.apicus-roi-flags-container span { /* Assuming flags are simple text for now */
+    color: #444;
+    font-style: italic;
+}
+
+/* If you decide to make flags into individual styled spans later:
+.apicus-roi-flag-item {
+    display: inline-block;
+    background-color: #7f8c8d;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    margin: 0 5px 5px 0;
+}
+*/
