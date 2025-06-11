@@ -222,12 +222,33 @@ ${JSON.stringify(inputForOpenAI, null, 2)}`
 
     if (responseData.choices && responseData.choices.length > 0 && responseData.choices[0].message && responseData.choices[0].message.content) {
       const aiResponseString = responseData.choices[0].message.content.trim();
+
+      let cleanedAiResponseString = aiResponseString;
+      const firstBraceIndex = aiResponseString.indexOf('{');
+      const lastBraceIndex = aiResponseString.lastIndexOf('}'); // Also find the last brace
+
+      if (firstBraceIndex !== -1 && lastBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+        // Extract the substring from the first '{' to the last '}'
+        cleanedAiResponseString = aiResponseString.substring(firstBraceIndex, lastBraceIndex + 1);
+        if (cleanedAiResponseString !== aiResponseString) {
+          console.log("getApicusRoiBenchmark: Cleaned AI response string. Original length:", aiResponseString.length, "Cleaned length:", cleanedAiResponseString.length);
+          console.log("Original raw string snippet (first 50 chars):", aiResponseString.substring(0, 50));
+          console.log("Cleaned string snippet (first 50 chars):", cleanedAiResponseString.substring(0, 50));
+        }
+      } else {
+        // If no braces found, or they are in wrong order, the string is likely not the JSON we expect.
+        // Log this, and the existing JSON.parse error handling will catch it.
+        console.warn("getApicusRoiBenchmark: Could not find valid JSON structure (start/end braces) in AI's response. Attempting to parse original string anyway. Raw string:", aiResponseString);
+      }
+
+      // Now, use cleanedAiResponseString in the JSON.parse attempt:
       try {
-          const parsedJsonResponse = JSON.parse(aiResponseString);
-          return parsedJsonResponse; // Return the parsed object
+          const parsedJsonResponse = JSON.parse(cleanedAiResponseString); // USE CLEANED STRING
+          return parsedJsonResponse;
       } catch (parseError) {
           console.error("OpenAI API Error: Failed to parse AI's response as JSON.", parseError);
-          console.error("AI's raw response string:", aiResponseString);
+          // Log the string that failed to parse (it's now the cleaned one, or original if cleaning failed)
+          console.error("AI's response string that failed parsing:", cleanedAiResponseString);
           alert("OpenAI API Error: Failed to parse the AI's response as JSON. Check console for details and the raw response.");
           return null;
       }
