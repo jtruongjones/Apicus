@@ -15,7 +15,8 @@
   ],
   "host_permissions": [
     "https://*.make.com/",
-    "https://api.openai.com/"
+    "https://api.openai.com/",
+    "https://*.make.com/api/v2/scenarios/*"
   ],
   "content_scripts": [
     {

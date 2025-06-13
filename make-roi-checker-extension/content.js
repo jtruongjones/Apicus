@@ -52,6 +52,75 @@ function getApiKey() {
   });
 }
 
+async function fetchScenarioBlueprint(scenarioId) {
+    const currentHost = window.location.host; // e.g., "us1.make.com"
+    const apiUrl = `https://${currentHost}/api/v2/scenarios/${scenarioId}/blueprint`;
+
+    console.log(`fetchScenarioBlueprint: Fetching from ${apiUrl}`);
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json' // Standard header
+                // Cookies should be sent automatically by the browser
+            }
+        });
+
+        if (!response.ok) {
+            console.error(`fetchScenarioBlueprint: API request failed with status ${response.status} - ${response.statusText}. URL: ${apiUrl}`);
+            try {
+                const errorData = await response.json();
+                console.error("fetchScenarioBlueprint: API error response data:", errorData);
+            } catch (e) {
+                console.error("fetchScenarioBlueprint: Could not parse error response as JSON.");
+            }
+            return null;
+        }
+
+        const responseData = await response.json();
+        console.log("fetchScenarioBlueprint: Received API response data:", responseData);
+
+        if (!responseData || !responseData.blueprint) {
+            console.error("fetchScenarioBlueprint: 'blueprint' field missing in API response.", responseData);
+            return null;
+        }
+
+        let scenarioObject;
+        if (typeof responseData.blueprint === 'string') {
+            console.log("fetchScenarioBlueprint: Blueprint is a string, attempting to parse.");
+            try {
+                scenarioObject = JSON.parse(responseData.blueprint);
+            } catch (e) {
+                console.error("fetchScenarioBlueprint: Error parsing blueprint string as JSON:", e);
+                console.error("Blueprint string that failed parsing:", responseData.blueprint);
+                return null;
+            }
+        } else if (typeof responseData.blueprint === 'object' && responseData.blueprint !== null) {
+            console.log("fetchScenarioBlueprint: Blueprint is already an object.");
+            scenarioObject = responseData.blueprint;
+        } else {
+            console.error("fetchScenarioBlueprint: Blueprint field is not a string or a valid object.", responseData.blueprint);
+            return null;
+        }
+
+        // At this point, scenarioObject should be the object that contains the 'flow' array,
+        // e.g. { name: "Scenario Name", flow: [...], metadata: {...} }
+        // We need to ensure it has the 'flow' array for downstream processing.
+        if (!scenarioObject || !Array.isArray(scenarioObject.flow)) {
+             console.error("fetchScenarioBlueprint: Parsed/obtained scenario object does not contain a 'flow' array.", scenarioObject);
+             return null;
+        }
+
+        console.log("fetchScenarioBlueprint: Successfully fetched and processed blueprint:", scenarioObject);
+        return scenarioObject; // This is the object like { name: "...", flow: [...] }
+
+    } catch (error) {
+        console.error(`fetchScenarioBlueprint: Network or other error during fetch: ${error.message}`, error);
+        return null;
+    }
+}
+
 async function getApicusRoiBenchmark(inputForOpenAI) {
   console.log("getApicusRoiBenchmark: Initiating call to OpenAI API...");
 
@@ -268,17 +337,53 @@ ${JSON.stringify(inputForOpenAI, null, 2)}`
 function initiateRoiAnalysis() {
   console.log("Apicus ROI Check: Analysis initiated.");
 
-  // Step 1: Try to get info from the side panel (for a potentially selected module)
-  const selectedModuleInfo = tryScrapeAuxiliaryInfo();
-  if (selectedModuleInfo) {
-    console.log("Information from selected module (side panel):", selectedModuleInfo);
-    // We might display this to the user or use it, but for now, just log it.
+  // 1. Extract scenarioId from URL
+  let scenarioId = null;
+  const url = window.location.href;
+  const scenarioMatch = url.match(/scenarios\/(\d+)\//); // Regex to find digits between "scenarios/" and "/"
+
+  if (scenarioMatch && scenarioMatch[1]) {
+      scenarioId = scenarioMatch[1];
+      console.log("Found scenarioId:", scenarioId);
   } else {
-    console.log("No specific module information found in the side panel, or panel not open/selectors not matched.");
+      console.log("ScenarioId not found in URL:", url);
   }
 
-  // Step 2: Always proceed to show the JSON input modal for full scenario analysis
-  showJsonInputModal();
+  let scenarioObject = null;
+  if (scenarioId) {
+      alert("Attempting to fetch scenario data directly from Make.com API...");
+      scenarioObject = await fetchScenarioBlueprint(scenarioId);
+      if (scenarioObject) {
+          console.log("Successfully fetched scenario blueprint via API.");
+          // Alert that data was fetched and will be processed
+          alert("Scenario data fetched successfully! Processing for ROI benchmark...");
+      } else {
+          console.warn("Failed to fetch scenario blueprint via API. Falling back to manual input.");
+          alert("Could not fetch scenario data automatically. Please use the modal to provide the JSON.");
+          // Fall through to showJsonInputModal below
+      }
+  } else {
+      alert("Could not identify scenario ID from URL. Please use the modal to provide the JSON.");
+      // Fall through to showJsonInputModal below
+  }
+
+  // 2. If scenarioObject was fetched, process it. Otherwise, show modal.
+  if (scenarioObject) {
+      // Pass the already parsed object to processScenarioJson
+      await processScenarioJson(scenarioObject);
+  } else {
+      // Fallback to manual input if scenarioId not found OR if fetch failed
+      console.log("Displaying JSON input modal for manual input.");
+      showJsonInputModal(); // This function handles its own alerts internally for paste/upload
+  }
+
+  // Regarding tryScrapeAuxiliaryInfo():
+  // This function was an attempt to get data from the side panel.
+  // It can be removed or commented out if it's no longer deemed useful,
+  // especially now that we have direct API access.
+  // For now, let's remove it to simplify the flow.
+  // const selectedModuleInfo = tryScrapeAuxiliaryInfo();
+  // if (selectedModuleInfo) { /* ... */ }
 }
 
 // Scrapes auxiliary information from potential UI regions in the Make.com scenario editor.
@@ -542,27 +647,48 @@ function showJsonInputModal() {
   console.log("JSON input modal shown.");
 }
 
-// Parses the provided JSON string (expected to be a Make.com scenario export),
+// Parses the provided JSON input (string or object, expected to be a Make.com scenario export),
 // extracts module information, and logs it. Also calls OpenAI for analysis.
-async function processScenarioJson(jsonString) {
-  console.log("Processing scenario JSON...");
+async function processScenarioJson(inputData) { // Renamed parameter to inputData
+    console.log("processScenarioJson: Received input, determining type...", typeof inputData);
 
-  try {
-    const scenarioData = JSON.parse(jsonString);
+    let scenarioData; // This will hold the parsed object
 
-    // Validate the basic structure: scenarioData.flow should be an array of modules
-    if (!scenarioData || !Array.isArray(scenarioData.flow)) {
-      console.error("Invalid JSON structure: 'flow' array not found.", scenarioData);
-      alert("Invalid JSON structure. Expected 'flow' to be an array of modules. Please check the console for more details.");
-      return;
+    if (typeof inputData === 'string') {
+        console.log("processScenarioJson: Input is a string, attempting to parse.");
+        try {
+            scenarioData = JSON.parse(inputData);
+        } catch (error) {
+            console.error("processScenarioJson: Error parsing JSON string:", error);
+            alert("Error parsing the provided JSON string: " + error.message + ". Please ensure it's valid JSON.");
+            return; // Exit if string parsing fails
+        }
+    } else if (typeof inputData === 'object' && inputData !== null) {
+        console.log("processScenarioJson: Input is already an object.");
+        scenarioData = inputData; // Use the object directly
+    } else {
+        console.error("processScenarioJson: Invalid input data type. Expected string or object, got:", inputData);
+        alert("Invalid data received for processing. Expected JSON string or object.");
+        return; // Exit if input is neither string nor object
     }
 
-    const modules = scenarioData.flow; // modules are directly in the 'flow' array
-    let extractedModulesInfo = [];
+    // At this point, scenarioData should be a valid JavaScript object.
+    // The rest of the function continues from here, using 'scenarioData'.
+    console.log("processScenarioJson: Validating scenarioData structure...", scenarioData);
+    try {
+        // Validate the basic structure (this was already in place, ensure it uses 'scenarioData')
+        if (!scenarioData || !Array.isArray(scenarioData.flow)) { // Make sure this uses scenarioData
+            console.error("Invalid scenario data structure: 'flow' array not found or not an array.", scenarioData);
+            alert("Invalid scenario data structure. Expected a 'flow' array within the data. Please check the console for more details.");
+            return;
+        }
 
-    console.log("Found " + modules.length + " modules in JSON.");
+        const modules = scenarioData.flow; // This was already correct
+        let extractedModulesInfo = [];
 
-    modules.forEach(module => {
+        console.log("Found " + modules.length + " modules in JSON.");
+
+        modules.forEach(module => {
       const moduleInfo = {
         id: module.id,
         // Use metadata.designer.name if available for operationName, otherwise fallback to module.name
@@ -629,10 +755,10 @@ async function processScenarioJson(jsonString) {
       alert("No modules found or processed from the JSON.");
     }
 
-  } catch (error) {
-    console.error("Error parsing JSON:", error);
-    alert("Error parsing JSON: " + error.message + ". Please ensure it's valid JSON and check the console.");
-  }
+    } catch (error) { // This outer try-catch handles unexpected errors in the rest of the processing
+        console.error("processScenarioJson: Error during processing of scenario data:", error);
+        alert("An unexpected error occurred while processing the scenario data: " + error.message);
+    }
 }
 
 function showEmbeddedRoiModal(roiData) {
