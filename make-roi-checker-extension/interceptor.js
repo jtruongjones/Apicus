@@ -1,5 +1,6 @@
 // make-roi-checker-extension/interceptor.js
 (function() {
+    console.log('[Apicus ROI Interceptor] Script execution started (page context). Timestamp:', Date.now());
     console.log('[Apicus ROI Interceptor] Script injected and running.');
 
     const originalFetch = window.fetch;
@@ -7,6 +8,13 @@
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
         const method = args[0] instanceof Request ? args[0].method : (args[1] && args[1].method ? args[1].method : 'GET');
+
+        // Log a sample of fetch calls
+        if (url.includes('/api/v2/scenarios/') || url.includes('blueprint')) { // Log all scenario API calls
+            console.log('[Apicus ROI Interceptor] Saw potentially relevant fetch call. URL:', url, 'Method:', method.toUpperCase());
+        } else if (Math.random() < 0.05) { // Log 5% of other calls to see if fetch is generally intercepted
+            console.log('[Apicus ROI Interceptor] Saw other fetch call (sampled). URL:', url, 'Method:', method.toUpperCase());
+        }
 
         // Regex to match the blueprint URL and capture scenarioId
         const blueprintUrlPattern = /api\/v2\/scenarios\/(\d+)\/blueprint/;
