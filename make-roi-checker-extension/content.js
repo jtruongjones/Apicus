@@ -334,7 +334,7 @@ ${JSON.stringify(inputForOpenAI, null, 2)}`
   }
 }
 
-function initiateRoiAnalysis() {
+async function initiateRoiAnalysis() {
   console.log("Apicus ROI Check: Analysis initiated.");
 
   // 1. Extract scenarioId from URL
