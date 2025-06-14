@@ -15,15 +15,13 @@
   ],
   "host_permissions": [
     "https://*.make.com/",
-    "https://api.openai.com/",
-    "https://*.make.com/api/v2/scenarios/*"
+    "https://api.openai.com/"
   ],
   "content_scripts": [
     {
       "matches": ["https://*.make.com/*"],
       "js": ["content.js"],
-        "css": ["style.css"],
-        "run_at": "document_start"
+        "css": ["style.css"]
     }
   ],
   "icons": {
@@ -31,11 +29,5 @@
     "48": "images/icon48.png",
     "128": "images/icon128.png"
   },
-  "options_page": "options.html",
-  "web_accessible_resources": [
-    {
-      "resources": ["interceptor.js"],
-      "matches": ["https://*.make.com/*"]
-    }
-  ]
+  "options_page": "options.html"
 }

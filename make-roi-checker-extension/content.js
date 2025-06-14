@@ -1,29 +1,4 @@
 // content.js
-let interceptorInjected = false; // Flag to ensure script is injected only once
-
-function injectInterceptorScript() {
-    if (interceptorInjected) {
-        // console.log('[Apicus ContentScript] Interceptor already injected.');
-        return;
-    }
-    try {
-        const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('interceptor.js');
-        script.onload = function() {
-            console.log('[Apicus ContentScript] interceptor.js loaded and executed in page context.');
-            // Optionally, remove the script tag from the DOM after it has executed
-            // this.remove();
-        };
-        script.onerror = function() {
-            console.error('[Apicus ContentScript] Error loading interceptor.js.');
-        };
-        (document.head || document.documentElement).appendChild(script);
-        interceptorInjected = true;
-        console.log('[Apicus ContentScript] Interceptor script injection attempted.');
-    } catch (e) {
-        console.error('[Apicus ContentScript] Error injecting interceptor script:', e);
-    }
-}
 
 function injectButton() {
   // Check if the current URL is a Make.com scenario editor page.
@@ -75,52 +50,6 @@ function getApiKey() {
       }
     });
   });
-}
-
-// Keep this async for consistency with initiateRoiAnalysis, though it's Promise-based internally now
-async function fetchScenarioBlueprint(scenarioId) {
-    console.log(`[Apicus ContentScript] fetchScenarioBlueprint called for scenarioId: ${scenarioId}`);
-
-    // Ensure interceptor is there (it should have been called on script load)
-    // injectInterceptorScript(); // Call here again if there's any doubt about load timing
-
-    return new Promise((resolve, reject) => {
-        const timeoutDuration = 15000; // 15 seconds timeout for waiting for the message
-
-        const messageListener = (event) => {
-            // Basic security checks
-            if (event.source !== window || event.origin !== window.location.origin) {
-                return;
-            }
-
-            if (event.data && event.data.type === "APICUS_ROI_BLUEPRINT_DATA" && event.data.scenarioId === scenarioId) {
-                console.log(`[Apicus ContentScript] Received APICUS_ROI_BLUEPRINT_DATA for scenarioId: ${scenarioId}`, event.data.blueprintData);
-                window.removeEventListener('message', messageListener);
-                clearTimeout(timeoutId);
-
-                // The interceptor sends data.blueprint. This might be an object or a string.
-                // The plan for processScenarioJson already handles parsing if it's a string.
-                // So, we resolve with what the interceptor sent.
-                resolve(event.data.blueprintData);
-            }
-        };
-
-        window.addEventListener('message', messageListener);
-
-        const timeoutId = setTimeout(() => {
-            window.removeEventListener('message', messageListener);
-            console.warn(`[Apicus ContentScript] Timeout waiting for blueprint data for scenarioId: ${scenarioId}`);
-            reject(new Error(`Timeout waiting for blueprint data for scenarioId: ${scenarioId}`));
-        }, timeoutDuration);
-
-        // After setting up the listener, we might need to trigger Make.com to fetch the data
-        // if it hasn't already. Often, navigating to the scenario or interacting with it
-        // causes this. If the user is already on the page, the blueprint might have been
-        // fetched before our interceptor was ready.
-        // For now, we assume the fetch will happen or has happened.
-        // If Make.com fetches on page load, injecting the interceptor very early is key.
-        console.log(`[Apicus ContentScript] Listener for blueprint data (scenarioId: ${scenarioId}) set up. Waiting for Make.com to fetch or for data to be posted.`);
-    });
 }
 
 async function getApicusRoiBenchmark(inputForOpenAI) {
@@ -336,64 +265,16 @@ ${JSON.stringify(inputForOpenAI, null, 2)}`
   }
 }
 
-async function initiateRoiAnalysis() {
-    console.log("[Apicus ContentScript] ROI Analysis initiated.");
-
-    let scenarioId = null;
-    const url = window.location.href;
-    const scenarioMatch = url.match(/scenarios\/(\d+)\//);
-
-    if (scenarioMatch && scenarioMatch[1]) {
-        scenarioId = scenarioMatch[1];
-        console.log("[Apicus ContentScript] Found scenarioId:", scenarioId);
-    } else {
-        console.log("[Apicus ContentScript] ScenarioId not found in URL:", url);
-    }
-
-    let scenarioObject = null;
-    if (scenarioId) {
-        alert("Attempting to retrieve scenario data automatically..."); // More generic message
-        try {
-            // fetchScenarioBlueprint now returns a Promise that resolves with data or rejects
-            scenarioObject = await fetchScenarioBlueprint(scenarioId);
-
-            if (scenarioObject) {
-                console.log("[Apicus ContentScript] Successfully retrieved scenario blueprint via interceptor.");
-                alert("Scenario data retrieved automatically! Processing for ROI benchmark...");
-            } else {
-                // This case might occur if the Promise resolves with null/undefined explicitly,
-                // but typically a timeout or other error would cause a rejection caught below.
-                console.warn("[Apicus ContentScript] Blueprint data was not available through interception (resolved null/undefined). Falling back to manual input.");
-                alert("Could not retrieve scenario data automatically. The scenario might not have loaded its data yet, or an issue occurred. Please use the modal for manual input.");
-            }
-        } catch (error) {
-            // This will catch rejections from fetchScenarioBlueprint (e.g., timeout)
-            console.error("[Apicus ContentScript] Error trying to get blueprint via interceptor:", error.message);
-            alert(`Could not retrieve scenario data automatically: ${error.message}. Please use the modal for manual input.`);
-            scenarioObject = null; // Ensure it's null for the fallback
-        }
-    } else {
-        alert("Could not identify scenario ID from URL for automatic data retrieval. Please use the modal to provide the JSON.");
-    }
-
-    if (scenarioObject) {
-        await processScenarioJson(scenarioObject);
-    } else {
-        console.log("[Apicus ContentScript] Falling back to manual JSON input modal.");
-        showJsonInputModal();
-    }
-
-  // Regarding tryScrapeAuxiliaryInfo():
-  // This function was an attempt to get data from the side panel.
-  // It can be removed or commented out if it's no longer deemed useful,
-  // especially now that we have direct API access.
-  // For now, let's remove it to simplify the flow.
-  // const selectedModuleInfo = tryScrapeAuxiliaryInfo();
-  // if (selectedModuleInfo) { /* ... */ }
+// Note: initiateRoiAnalysis was async due to awaiting fetchScenarioBlueprint.
+// Since that's removed, it can be a regular function.
+function initiateRoiAnalysis() {
+    console.log("[Apicus ContentScript] ROI Analysis initiated. Showing JSON input modal.");
+    showJsonInputModal();
 }
 
 // Scrapes auxiliary information from potential UI regions in the Make.com scenario editor.
 // This is a broad-phase scrape; specific parsing of this text will come later if needed.
+// THIS FUNCTION IS CURRENTLY UNUSED.
 function tryScrapeAuxiliaryInfo() {
   console.log("Attempting to scrape auxiliary info from potential UI regions...");
   let foundTexts = [];
@@ -766,14 +647,6 @@ async function processScenarioJson(inputData) { // Renamed parameter to inputDat
         alert("An unexpected error occurred while processing the scenario data: " + error.message);
     }
 }
-
-// Call the injector script as early as possible.
-// If this content script is set to "document_idle", this will be after DOM is ready.
-// If "document_start", it's very early. "document_end" is another option.
-// For intercepting fetches that happen on page load, "document_start" along with
-// careful injection might be needed. For now, this should be fine for fetches
-// triggered by user interaction or later page events.
-injectInterceptorScript();
 
 function showEmbeddedRoiModal(roiData) {
     console.log("showEmbeddedRoiModal called with data:", roiData);
