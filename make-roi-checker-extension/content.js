@@ -619,7 +619,7 @@ async function processScenarioJson(inputData) { // Renamed parameter to inputDat
       };
 
       console.log("Calling getApicusRoiBenchmark with input:", inputForOpenAI);
-      alert("Sending data to OpenAI for ROI Benchmark analysis. This may take a moment...");
+      alert("Sending data to Apicus for ROI Benchmark analysis. This may take a moment...");
 
       const roiBenchmarkObject = await getApicusRoiBenchmark(inputForOpenAI);
 

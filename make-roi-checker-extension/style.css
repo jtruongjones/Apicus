@@ -80,19 +80,24 @@
     margin-bottom: 12px;
     padding: 8px 0;
     border-bottom: 1px solid #eee; /* Separator for rows */
+    display: flex;           /* Added */
+    align-items: baseline;   /* Added (or center) */
 }
-.apicus-roi-data-row:last-of-type { /* Corrected to target the intended last data row before notes/flags */
+.apicus-roi-data-row:last-of-type {
     border-bottom: none;
 }
-.apicus-roi-data-row strong {
-    color: #555; /* Label color */
-    display: inline-block;
-    min-width: 240px; /* Adjust for alignment if needed */
+.apicus-roi-data-row strong { /* Label part */
+    color: #555;
     font-weight: 600;
+    flex-basis: 260px;  /* Changed from min-width, adjust value as needed */
+    flex-shrink: 0;     /* Added: Prevents label from shrinking */
+    margin-right: 10px; /* Added: Space between label and value */
 }
-.apicus-roi-data-row span {
+.apicus-roi-data-row span { /* Value part */
     font-weight: 500;
     color: #222;
+    flex-grow: 1;       /* Added: Allows value to take remaining space */
+    word-break: break-word; /* Added: Helps if value is a long unbroken string */
 }
 
 .apicus-roi-highlight { /* For the main ROI calculation row */
